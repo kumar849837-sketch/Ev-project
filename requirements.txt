@@ -6,3 +6,5 @@ plotly
 seaborn
 joblib
 requests
+pyotp
+qrcode[pil]

@@ -8,6 +8,8 @@ import os
 import requests
 import datetime
 import json
+import pyotp
+import qrcode
 
 # --- Configurations ---
 st.set_page_config(
@@ -98,7 +100,7 @@ def load_users():
     if os.path.exists(USERS_FILE):
         with open(USERS_FILE, 'r') as f:
             return json.load(f)
-    return {"admin": "password"}
+    return {}
 
 def save_users(users):
     with open(USERS_FILE, 'w') as f:
@@ -158,11 +160,20 @@ def check_password():
         with tab1:
             username = st.text_input("Username", key="login_user")
             password = st.text_input("Password", type="password", key="login_pass")
+            totp_code = st.text_input("2FA Code (6 Digits)", key="login_totp")
             
             if st.button("Login"):
-                if username in users and users[username] == password:
-                    st.session_state["password_correct"] = True
-                    st.rerun()
+                if username in users:
+                    user_data = users[username]
+                    if user_data.get("password") == password:
+                        totp = pyotp.TOTP(user_data.get("totp_secret", ""))
+                        if totp.verify(totp_code):
+                            st.session_state["password_correct"] = True
+                            st.rerun()
+                        else:
+                            st.error("😕 2FA Code is incorrect")
+                    else:
+                        st.error("😕 Username or password incorrect")
                 else:
                     st.error("😕 Username or password incorrect")
                     
@@ -171,7 +182,7 @@ def check_password():
             new_pass = st.text_input("New Password", type="password", key="signup_pass")
             confirm_pass = st.text_input("Confirm Password", type="password", key="signup_confirm")
             
-            if st.button("Sign Up"):
+            if st.button("Secure Sign Up"):
                 if not new_user or not new_pass:
                     st.error("Please fill in all fields.")
                 elif new_user in users:
@@ -179,9 +190,26 @@ def check_password():
                 elif new_pass != confirm_pass:
                     st.error("Passwords do not match!")
                 else:
-                    users[new_user] = new_pass
+                    secret = pyotp.random_base32()
+                    users[new_user] = {
+                        "password": new_pass,
+                        "totp_secret": secret
+                    }
                     save_users(users)
-                    st.success("Account created! You can now log in.")
+                    
+                    st.success("Account created! Scan the QR code below using Google Authenticator/Authy. **Do not close this page until scanned.**")
+                    
+                    # Generate QR Code
+                    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+                        name=new_user,
+                        issuer_name="EV Analytics"
+                    )
+                    qr = qrcode.make(totp_uri)
+                    
+                    import io
+                    buf = io.BytesIO()
+                    qr.save(buf, format="PNG")
+                    st.image(buf.getvalue(), caption="Scan to configure your 2FA")
         
         st.markdown('</div><br><br>', unsafe_allow_html=True)
 
