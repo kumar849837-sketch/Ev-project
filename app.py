@@ -91,6 +91,37 @@ if df.empty:
     st.error("Data not found. Please run the data generator script first.")
     st.stop()
 
+# --- Authentication ---
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    def password_entered():
+        if st.session_state["username"] == "admin" and st.session_state["password"] == "password":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.subheader("Dashboard Login")
+        st.text_input("Username", key="username")
+        st.text_input("Password", type="password", key="password")
+        st.button("Login", on_click=password_entered)
+        return False
+    elif not st.session_state["password_correct"]:
+        st.subheader("Dashboard Login")
+        st.text_input("Username", key="username")
+        st.text_input("Password", type="password", key="password")
+        st.button("Login", on_click=password_entered)
+        st.error("😕 Username or password incorrect")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+    
 # --- App Layout ---
 st.title("⚡ EV Analytics & Performance Prediction")
 st.markdown("Explore electric vehicle performance trends, compare technical specifications, and use machine learning to forecast range and charging times.")
