@@ -169,6 +169,7 @@ def check_password():
                         totp = pyotp.TOTP(user_data.get("totp_secret", ""))
                         if totp.verify(totp_code):
                             st.session_state["password_correct"] = True
+                            st.session_state["logged_in_user"] = username
                             st.rerun()
                         else:
                             st.error("😕 2FA Code is incorrect")
@@ -223,7 +224,7 @@ st.title("⚡ EV Analytics & Performance Prediction")
 st.markdown("Explore electric vehicle performance trends, compare technical specifications, and use machine learning to forecast range and charging times.")
 
 # Tabs
-tab1, tab2, tab3 = st.tabs(["📊 Analytics Dashboard", "🔋 Feature Importance", "🔮 Predictive What-If Simulator"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Analytics Dashboard", "🔋 Feature Importance", "🔮 Predictive What-If Simulator", "👤 My Profile"])
 
 # --- Tab 1: Analytics Dashboard ---
 with tab1:
@@ -405,3 +406,36 @@ with tab3:
             
     else:
         st.warning("Prediction models are currently unavailable. Please ensure `train_models.py` has been executed.")
+
+# --- Tab 4: User Profile ---
+with tab4:
+    st.header("👤 My Profile Settings")
+    st.markdown("Update your personal and professional details below.")
+    
+    users_db = load_users()
+    current_user = st.session_state.get("logged_in_user")
+    
+    if current_user and current_user in users_db:
+        user_info = users_db[current_user]
+        
+        with st.form("profile_form"):
+            colA, colB = st.columns(2)
+            with colA:
+                form_name = st.text_input("Full Name", value=user_info.get("full_name", ""))
+                form_email = st.text_input("Email", value=user_info.get("email", ""))
+            with colB:
+                form_company = st.text_input("Company", value=user_info.get("company", ""))
+                form_job = st.text_input("Job Title", value=user_info.get("job_title", ""))
+                
+            submitted = st.form_submit_button("Update Profile")
+            if submitted:
+                user_info["full_name"] = form_name
+                user_info["email"] = form_email
+                user_info["company"] = form_company
+                user_info["job_title"] = form_job
+                
+                users_db[current_user] = user_info
+                save_users(users_db)
+                st.success("✅ Profile successfully updated!")
+    else:
+        st.error("Error loading user profile. Please try logging out and logging back in.")
