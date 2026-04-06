@@ -158,59 +158,60 @@ def check_password():
         tab1, tab2 = st.tabs(["Login", "Sign Up"])
         
         with tab1:
-            username = st.text_input("Username", key="login_user")
+            contact = st.text_input("Email or Phone", key="login_contact")
             password = st.text_input("Password", type="password", key="login_pass")
-            totp_code = st.text_input("2FA Code (6 Digits)", key="login_totp")
             
-            if st.button("Login"):
-                if username in users:
-                    user_data = users[username]
-                    if user_data.get("password") == password:
-                        totp = pyotp.TOTP(user_data.get("totp_secret", ""))
-                        if totp.verify(totp_code):
+            if "awaiting_otp" not in st.session_state:
+                st.session_state["awaiting_otp"] = False
+                
+            if not st.session_state["awaiting_otp"]:
+                if st.button("Send OTP"):
+                    if contact in users and users[contact].get("password") == password:
+                        import random
+                        otp = str(random.randint(100000, 999999))
+                        st.session_state["expected_otp"] = otp
+                        st.session_state["contact_attempt"] = contact
+                        st.session_state["awaiting_otp"] = True
+                        st.rerun()
+                    else:
+                        st.error("😕 Account not found or password incorrect")
+            else:
+                st.info(f"Simulation: OTP sent to {st.session_state.get('contact_attempt')}. Your code is: **{st.session_state.get('expected_otp')}**")
+                entered_otp = st.text_input("Enter 6-Digit OTP", key="login_otp")
+                
+                colA, colB = st.columns(2)
+                with colA:
+                    if st.button("Verify & Login"):
+                        if entered_otp == st.session_state.get("expected_otp"):
                             st.session_state["password_correct"] = True
-                            st.session_state["logged_in_user"] = username
+                            st.session_state["logged_in_user"] = st.session_state.get("contact_attempt")
+                            st.session_state["awaiting_otp"] = False
                             st.rerun()
                         else:
-                            st.error("😕 2FA Code is incorrect")
-                    else:
-                        st.error("😕 Username or password incorrect")
-                else:
-                    st.error("😕 Username or password incorrect")
+                            st.error("😕 Incorrect OTP.")
+                with colB:
+                    if st.button("Cancel"):
+                        st.session_state["awaiting_otp"] = False
+                        st.rerun()
                     
         with tab2:
-            new_user = st.text_input("New Username", key="signup_user")
+            new_contact = st.text_input("New Email or Phone", key="signup_contact")
             new_pass = st.text_input("New Password", type="password", key="signup_pass")
             confirm_pass = st.text_input("Confirm Password", type="password", key="signup_confirm")
             
-            if st.button("Secure Sign Up"):
-                if not new_user or not new_pass:
+            if st.button("Sign Up"):
+                if not new_contact or not new_pass:
                     st.error("Please fill in all fields.")
-                elif new_user in users:
-                    st.error("Username already exists!")
+                elif new_contact in users:
+                    st.error("Account already exists!")
                 elif new_pass != confirm_pass:
                     st.error("Passwords do not match!")
                 else:
-                    secret = pyotp.random_base32()
-                    users[new_user] = {
-                        "password": new_pass,
-                        "totp_secret": secret
+                    users[new_contact] = {
+                        "password": new_pass
                     }
                     save_users(users)
-                    
-                    st.success("Account created! Scan the QR code below using Google Authenticator/Authy. **Do not close this page until scanned.**")
-                    
-                    # Generate QR Code
-                    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-                        name=new_user,
-                        issuer_name="EV Analytics"
-                    )
-                    qr = qrcode.make(totp_uri)
-                    
-                    import io
-                    buf = io.BytesIO()
-                    qr.save(buf, format="PNG")
-                    st.image(buf.getvalue(), caption="Scan to configure your 2FA")
+                    st.success("Account created successfully! You can now switch to the Login tab.")
         
         st.markdown('</div><br><br>', unsafe_allow_html=True)
 

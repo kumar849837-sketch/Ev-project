@@ -22,7 +22,7 @@ class ProfileUpdate(BaseModel):
     job_title: Optional[str] = None
 
 class UserProfile(BaseModel):
-    username: str
+    contact: str
     profile: ProfileUpdate
 
 # Helper functions
@@ -42,16 +42,16 @@ def save_users(users):
 def read_root():
     return {"message": "Welcome to the EV Analytics Profile API!"}
 
-@app.get("/profile/{username}", response_model=UserProfile)
-def get_profile(username: str):
+@app.get("/profile/{contact}", response_model=UserProfile)
+def get_profile(contact: str):
     """
-    Retrieve user profile information given a username.
+    Retrieve user profile information given a contact (email/phone).
     """
     users = load_users()
-    if username not in users:
+    if contact not in users:
         raise HTTPException(status_code=404, detail="User not found")
         
-    user_data = users[username]
+    user_data = users[contact]
     # Extract profile fields, set to None if they don't exist yet
     profile_data = {
         "full_name": user_data.get("full_name"),
@@ -60,19 +60,19 @@ def get_profile(username: str):
         "job_title": user_data.get("job_title")
     }
     
-    return {"username": username, "profile": profile_data}
+    return {"contact": contact, "profile": profile_data}
 
-@app.put("/profile/{username}", response_model=UserProfile)
-def update_profile(username: str, profile: ProfileUpdate):
+@app.put("/profile/{contact}", response_model=UserProfile)
+def update_profile(contact: str, profile: ProfileUpdate):
     """
     Update user profile information.
     """
     users = load_users()
-    if username not in users:
+    if contact not in users:
         raise HTTPException(status_code=404, detail="User not found")
         
     # Update only the fields that were provided
-    user_data = users[username]
+    user_data = users[contact]
     if profile.full_name is not None:
         user_data["full_name"] = profile.full_name
     if profile.email is not None:
@@ -82,7 +82,7 @@ def update_profile(username: str, profile: ProfileUpdate):
     if profile.job_title is not None:
         user_data["job_title"] = profile.job_title
         
-    users[username] = user_data
+    users[contact] = user_data
     save_users(users)
     
-    return {"username": username, "profile": profile.dict()}
+    return {"contact": contact, "profile": profile.dict()}
