@@ -92,36 +92,104 @@ if df.empty:
     st.stop()
 
 # --- Authentication ---
+USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r') as f:
+            return json.load(f)
+    return {"admin": "password"}
+
+def save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f)
+
 def check_password():
-    """Returns `True` if the user had the correct password."""
-
-    def password_entered():
-        if st.session_state["username"] == "admin" and st.session_state["password"] == "password":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-            del st.session_state["username"]
-        else:
-            st.session_state["password_correct"] = False
-
+    """Returns `True` if the user is authenticated."""
+    users = load_users()
+    
     if "password_correct" not in st.session_state:
-        st.subheader("Dashboard Login")
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", key="password")
-        st.button("Login", on_click=password_entered)
-        return False
-    elif not st.session_state["password_correct"]:
-        st.subheader("Dashboard Login")
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", key="password")
-        st.button("Login", on_click=password_entered)
-        st.error("😕 Username or password incorrect")
-        return False
-    else:
+        st.session_state["password_correct"] = False
+        
+    if st.session_state["password_correct"]:
         return True
+        
+    st.markdown("""
+    <style>
+        .auth-card {
+            background-color: #1E1E1E;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.2);
+            margin: auto;
+            text-align: center;
+        }
+        .auth-title {
+            color: #00E676 !important;
+            margin-bottom: 20px;
+        }
+        div.stButton > button {
+            width: 100%;
+            background-color: #00E676;
+            color: #121212;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+        div.stButton > button:hover {
+            background-color: #00C853;
+            color: white;
+            box-shadow: 0 0 10px #00E676;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    _, col, _ = st.columns([1, 2, 1])
+    
+    with col:
+        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+        st.markdown('<h2 class="auth-title">⚡ Welcome to EV Analytics</h2>', unsafe_allow_html=True)
+        
+        tab1, tab2 = st.tabs(["Login", "Sign Up"])
+        
+        with tab1:
+            username = st.text_input("Username", key="login_user")
+            password = st.text_input("Password", type="password", key="login_pass")
+            
+            if st.button("Login"):
+                if username in users and users[username] == password:
+                    st.session_state["password_correct"] = True
+                    st.rerun()
+                else:
+                    st.error("😕 Username or password incorrect")
+                    
+        with tab2:
+            new_user = st.text_input("New Username", key="signup_user")
+            new_pass = st.text_input("New Password", type="password", key="signup_pass")
+            confirm_pass = st.text_input("Confirm Password", type="password", key="signup_confirm")
+            
+            if st.button("Sign Up"):
+                if not new_user or not new_pass:
+                    st.error("Please fill in all fields.")
+                elif new_user in users:
+                    st.error("Username already exists!")
+                elif new_pass != confirm_pass:
+                    st.error("Passwords do not match!")
+                else:
+                    users[new_user] = new_pass
+                    save_users(users)
+                    st.success("Account created! You can now log in.")
+        
+        st.markdown('</div><br><br>', unsafe_allow_html=True)
+
+    return False
 
 if not check_password():
     st.stop()
-    
+
 # --- App Layout ---
 st.title("⚡ EV Analytics & Performance Prediction")
 st.markdown("Explore electric vehicle performance trends, compare technical specifications, and use machine learning to forecast range and charging times.")
